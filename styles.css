@@ -20,6 +20,20 @@ body {
     padding: 2rem;
 }
 
+.warning-box {
+    background-color: #2d2d2d;
+    border-left: 4px solid #ffa500;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 4px;
+}
+
+.warning-box p {
+    color: #ffa500;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
 h1 {
     text-align: center;
     color: #569cd6;
@@ -158,6 +172,10 @@ button:hover {
 
 .log-info {
     color: #9cdcfe;
+}
+
+.log-warning {
+    color: #ffa500;
 }
 
 .hidden {

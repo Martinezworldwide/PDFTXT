@@ -114,52 +114,74 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const page = await pdf.getPage(i);
                     
-                    // Try different text extraction methods
+                    // Create a canvas for rendering
+                    const viewport = page.getViewport({ scale: 2.0 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    // Render the page
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
+
+                    // Get text content using the rendered page
                     const textContent = await page.getTextContent({
                         normalizeWhitespace: true,
                         disableCombineTextItems: false
                     });
 
-                    // Debug the text content
-                    console.log('Text content for page', i, ':', textContent);
-                    
                     if (!textContent || !textContent.items || textContent.items.length === 0) {
-                        addLogEntry(`Warning: No text content found on page ${i}`, 'error');
-                        continue;
-                    }
+                        // If no text content, try alternative method
+                        const textLayer = await page.getTextContent({
+                            normalizeWhitespace: true,
+                            disableCombineTextItems: false,
+                            includeMarkedContent: true
+                        });
 
-                    // Process text items with proper formatting
-                    let pageText = '';
-                    let lastY = null;
-                    
-                    // Sort items by Y position (top to bottom)
-                    const sortedItems = [...textContent.items].sort((a, b) => {
-                        return b.transform[5] - a.transform[5]; // Sort by Y position
-                    });
-                    
-                    for (const item of sortedItems) {
-                        // Add newline when Y position changes significantly
-                        if (lastY !== null && Math.abs(lastY - item.transform[5]) > 5) {
-                            pageText += '\n';
+                        if (textLayer && textLayer.items && textLayer.items.length > 0) {
+                            const pageText = textLayer.items.map(item => item.str).join(' ');
+                            extractedText += `=== Page ${i} ===\n${pageText.trim()}\n\n`;
+                            addLogEntry(`Page ${i} processed successfully with ${textLayer.items.length} text items`, 'success');
+                        } else {
+                            addLogEntry(`Warning: No text content found on page ${i}`, 'warning');
                         }
-                        lastY = item.transform[5];
-                        
-                        // Add the text
-                        if (item.str && item.str.trim()) {
-                            pageText += item.str + ' ';
-                        }
-                    }
-                    
-                    if (pageText.trim()) {
-                        extractedText += `=== Page ${i} ===\n${pageText.trim()}\n\n`;
-                        addLogEntry(`Page ${i} processed successfully with ${textContent.items.length} text items`, 'success');
                     } else {
-                        addLogEntry(`Warning: No text extracted from page ${i}`, 'error');
+                        // Process text items with proper formatting
+                        let pageText = '';
+                        let lastY = null;
+                        
+                        // Sort items by Y position (top to bottom)
+                        const sortedItems = [...textContent.items].sort((a, b) => {
+                            return b.transform[5] - a.transform[5]; // Sort by Y position
+                        });
+                        
+                        for (const item of sortedItems) {
+                            // Add newline when Y position changes significantly
+                            if (lastY !== null && Math.abs(lastY - item.transform[5]) > 5) {
+                                pageText += '\n';
+                            }
+                            lastY = item.transform[5];
+                            
+                            // Add the text
+                            if (item.str && item.str.trim()) {
+                                pageText += item.str + ' ';
+                            }
+                        }
+                        
+                        if (pageText.trim()) {
+                            extractedText += `=== Page ${i} ===\n${pageText.trim()}\n\n`;
+                            addLogEntry(`Page ${i} processed successfully with ${textContent.items.length} text items`, 'success');
+                        } else {
+                            addLogEntry(`Warning: No text extracted from page ${i}`, 'warning');
+                        }
                     }
                 }
 
                 if (!extractedText.trim()) {
-                    throw new Error('No text could be extracted from the PDF');
+                    throw new Error('No text could be extracted from the PDF. Please try a different PDF file.');
                 }
 
                 // Create and download the TXT file
