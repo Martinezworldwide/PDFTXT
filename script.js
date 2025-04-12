@@ -98,7 +98,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 addLogEntry(`Processing ${file.name}...`, 'info');
                 
                 const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const pdf = await pdfjsLib.getDocument({ 
+                    data: arrayBuffer,
+                    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
+                    cMapPacked: true
+                }).promise;
                 
                 addLogEntry(`PDF loaded successfully. Number of pages: ${pdf.numPages}`, 'info');
                 
@@ -109,13 +113,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     addLogEntry(`Processing page ${i} of ${pdf.numPages}...`, 'info');
                     
                     const page = await pdf.getPage(i);
-                    const textContent = await page.getTextContent();
                     
+                    // Try different text extraction methods
+                    const textContent = await page.getTextContent({
+                        normalizeWhitespace: true,
+                        disableCombineTextItems: false
+                    });
+
+                    // Debug the text content
+                    console.log('Text content for page', i, ':', textContent);
+                    
+                    if (!textContent || !textContent.items || textContent.items.length === 0) {
+                        addLogEntry(`Warning: No text content found on page ${i}`, 'error');
+                        continue;
+                    }
+
                     // Process text items with proper formatting
                     let pageText = '';
                     let lastY = null;
                     
-                    for (const item of textContent.items) {
+                    // Sort items by Y position (top to bottom)
+                    const sortedItems = [...textContent.items].sort((a, b) => {
+                        return b.transform[5] - a.transform[5]; // Sort by Y position
+                    });
+                    
+                    for (const item of sortedItems) {
                         // Add newline when Y position changes significantly
                         if (lastY !== null && Math.abs(lastY - item.transform[5]) > 5) {
                             pageText += '\n';
@@ -123,11 +145,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         lastY = item.transform[5];
                         
                         // Add the text
-                        pageText += item.str + ' ';
+                        if (item.str && item.str.trim()) {
+                            pageText += item.str + ' ';
+                        }
                     }
                     
-                    extractedText += `=== Page ${i} ===\n${pageText.trim()}\n\n`;
-                    addLogEntry(`Page ${i} processed successfully`, 'success');
+                    if (pageText.trim()) {
+                        extractedText += `=== Page ${i} ===\n${pageText.trim()}\n\n`;
+                        addLogEntry(`Page ${i} processed successfully with ${textContent.items.length} text items`, 'success');
+                    } else {
+                        addLogEntry(`Warning: No text extracted from page ${i}`, 'error');
+                    }
+                }
+
+                if (!extractedText.trim()) {
+                    throw new Error('No text could be extracted from the PDF');
                 }
 
                 // Create and download the TXT file
