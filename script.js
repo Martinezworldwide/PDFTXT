@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     let selectedFiles = [];
 
+    // Initialize PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
     // Command line functionality
     commandInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
@@ -33,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case 'help':
                 addLogEntry('Available commands:', 'info');
-                addLogEntry('convert - Convert all selected files', 'info');
+                addLogEntry('convert - Convert all selected PDF files to TXT', 'info');
                 addLogEntry('clear - Clear all selected files', 'info');
                 addLogEntry('help - Show this help message', 'info');
                 break;
@@ -79,36 +82,48 @@ document.addEventListener('DOMContentLoaded', () => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // Conversion handling
+    // PDF to TXT conversion
     convertBtn.addEventListener('click', convertFiles);
 
-    function convertFiles() {
+    async function convertFiles() {
         if (selectedFiles.length === 0) {
             addLogEntry('No files selected for conversion', 'error');
             return;
         }
 
-        addLogEntry(`Starting conversion of ${selectedFiles.length} files...`, 'info');
+        addLogEntry(`Starting conversion of ${selectedFiles.length} PDF files...`, 'info');
 
-        selectedFiles.forEach((file, index) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const content = e.target.result;
-                const blob = new Blob([content], { type: 'text/plain' });
+        for (const file of selectedFiles) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let textContent = '';
+
+                // Extract text from each page
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    textContent += pageText + '\n\n';
+                }
+
+                // Create and download the TXT file
+                const blob = new Blob([textContent], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = file.name.replace('.java', '.txt');
+                a.download = file.name.replace('.pdf', '.txt');
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
 
                 addLogEntry(`Converted: ${file.name} -> ${a.download}`, 'success');
-            };
-            reader.readAsText(file);
-        });
+            } catch (error) {
+                addLogEntry(`Error converting ${file.name}: ${error.message}`, 'error');
+            }
+        }
     }
 
     // Clear functionality
