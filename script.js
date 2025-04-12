@@ -110,14 +110,28 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     const page = await pdf.getPage(i);
                     const textContent = await page.getTextContent();
-                    const pageText = textContent.items.map(item => item.str).join(' ');
-                    extractedText += pageText + '\n\n';
                     
+                    // Process text items with proper formatting
+                    let pageText = '';
+                    let lastY = null;
+                    
+                    for (const item of textContent.items) {
+                        // Add newline when Y position changes significantly
+                        if (lastY !== null && Math.abs(lastY - item.transform[5]) > 5) {
+                            pageText += '\n';
+                        }
+                        lastY = item.transform[5];
+                        
+                        // Add the text
+                        pageText += item.str + ' ';
+                    }
+                    
+                    extractedText += `=== Page ${i} ===\n${pageText.trim()}\n\n`;
                     addLogEntry(`Page ${i} processed successfully`, 'success');
                 }
 
                 // Create and download the TXT file
-                const blob = new Blob([extractedText], { type: 'text/plain' });
+                const blob = new Blob([extractedText], { type: 'text/plain;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 
                 const a = document.createElement('a');
