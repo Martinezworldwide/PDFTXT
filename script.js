@@ -95,20 +95,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (const file of selectedFiles) {
             try {
+                addLogEntry(`Processing ${file.name}...`, 'info');
+                
                 const arrayBuffer = await file.arrayBuffer();
                 const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-                let textContent = '';
+                
+                addLogEntry(`PDF loaded successfully. Number of pages: ${pdf.numPages}`, 'info');
+                
+                let extractedText = '';
 
                 // Extract text from each page
                 for (let i = 1; i <= pdf.numPages; i++) {
+                    addLogEntry(`Processing page ${i} of ${pdf.numPages}...`, 'info');
+                    
                     const page = await pdf.getPage(i);
                     const textContent = await page.getTextContent();
                     const pageText = textContent.items.map(item => item.str).join(' ');
-                    textContent += pageText + '\n\n';
+                    extractedText += pageText + '\n\n';
+                    
+                    addLogEntry(`Page ${i} processed successfully`, 'success');
                 }
 
                 // Create and download the TXT file
-                const blob = new Blob([textContent], { type: 'text/plain' });
+                const blob = new Blob([extractedText], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 
                 const a = document.createElement('a');
@@ -119,9 +128,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
 
-                addLogEntry(`Converted: ${file.name} -> ${a.download}`, 'success');
+                addLogEntry(`Successfully converted: ${file.name} -> ${a.download}`, 'success');
             } catch (error) {
                 addLogEntry(`Error converting ${file.name}: ${error.message}`, 'error');
+                console.error('Conversion error:', error);
             }
         }
     }
