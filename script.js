@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    // PDF to TXT conversion
+    // PDF to TXT conversion with OCR
     convertBtn.addEventListener('click', convertFiles);
 
     async function convertFiles() {
@@ -108,75 +108,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 let extractedText = '';
 
-                // Extract text from each page
+                // Extract text from each page using OCR
                 for (let i = 1; i <= pdf.numPages; i++) {
                     addLogEntry(`Processing page ${i} of ${pdf.numPages}...`, 'info');
                     
                     const page = await pdf.getPage(i);
+                    const viewport = page.getViewport({ scale: 3.0 }); // Increased scale for better OCR
                     
-                    // Create a canvas for rendering
-                    const viewport = page.getViewport({ scale: 2.0 });
+                    // Create canvas for rendering
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
 
-                    // Render the page
+                    // Render PDF page to canvas
                     await page.render({
                         canvasContext: context,
                         viewport: viewport
                     }).promise;
 
-                    // Get text content using the rendered page
-                    const textContent = await page.getTextContent({
-                        normalizeWhitespace: true,
-                        disableCombineTextItems: false
-                    });
-
-                    if (!textContent || !textContent.items || textContent.items.length === 0) {
-                        // If no text content, try alternative method
-                        const textLayer = await page.getTextContent({
-                            normalizeWhitespace: true,
-                            disableCombineTextItems: false,
-                            includeMarkedContent: true
-                        });
-
-                        if (textLayer && textLayer.items && textLayer.items.length > 0) {
-                            const pageText = textLayer.items.map(item => item.str).join(' ');
-                            extractedText += `=== Page ${i} ===\n${pageText.trim()}\n\n`;
-                            addLogEntry(`Page ${i} processed successfully with ${textLayer.items.length} text items`, 'success');
-                        } else {
-                            addLogEntry(`Warning: No text content found on page ${i}`, 'warning');
-                        }
-                    } else {
-                        // Process text items with proper formatting
-                        let pageText = '';
-                        let lastY = null;
-                        
-                        // Sort items by Y position (top to bottom)
-                        const sortedItems = [...textContent.items].sort((a, b) => {
-                            return b.transform[5] - a.transform[5]; // Sort by Y position
-                        });
-                        
-                        for (const item of sortedItems) {
-                            // Add newline when Y position changes significantly
-                            if (lastY !== null && Math.abs(lastY - item.transform[5]) > 5) {
-                                pageText += '\n';
+                    // Convert canvas to image data URL
+                    const imageDataUrl = canvas.toDataURL('image/jpeg', 1.0);
+                    
+                    // Perform OCR on the image
+                    addLogEntry(`Running OCR on page ${i}...`, 'info');
+                    
+                    try {
+                        const { data: { text } } = await Tesseract.recognize(
+                            imageDataUrl,
+                            'eng',
+                            {
+                                logger: m => {
+                                    if (m.status === 'recognizing text') {
+                                        addLogEntry(`OCR progress: ${Math.round(m.progress * 100)}%`, 'info');
+                                    }
+                                },
+                                tessjs_create_pdf: '0',
+                                tessjs_create_hocr: '0',
+                                tessjs_create_tsv: '0',
+                                tessjs_create_box: '0',
+                                tessjs_create_unlv: '0',
+                                tessjs_create_osd: '0'
                             }
-                            lastY = item.transform[5];
-                            
-                            // Add the text
-                            if (item.str && item.str.trim()) {
-                                pageText += item.str + ' ';
-                            }
-                        }
-                        
-                        if (pageText.trim()) {
-                            extractedText += `=== Page ${i} ===\n${pageText.trim()}\n\n`;
-                            addLogEntry(`Page ${i} processed successfully with ${textContent.items.length} text items`, 'success');
+                        );
+
+                        if (text && text.trim()) {
+                            extractedText += `=== Page ${i} ===\n${text.trim()}\n\n`;
+                            addLogEntry(`Page ${i} processed successfully with OCR`, 'success');
                         } else {
                             addLogEntry(`Warning: No text extracted from page ${i}`, 'warning');
                         }
+                    } catch (ocrError) {
+                        addLogEntry(`OCR error on page ${i}: ${ocrError.message}`, 'error');
+                        console.error('OCR error:', ocrError);
                     }
                 }
 
