@@ -6,12 +6,13 @@
     <title>PDF to TXT Converter</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>PDF to TXT Converter</h1>
         <div class="warning-box">
-            <p>⚠️ Note: This converter works best with text-based PDFs. Scanned PDFs or image-based PDFs will not be converted properly. For scanned documents, please use an OCR (Optical Character Recognition) tool first.</p>
+            <p>⚠️ Note: This converter uses OCR to extract text from PDFs. The process might take longer for larger files.</p>
         </div>
         <div class="converter-box">
             <div class="command-line">
