@@ -1,3 +1,5 @@
+https://martinezworldwide.github.io/PDFTXT/
+
 # PDF to TXT Converter
 
 A web-based application that converts PDF files to TXT format using PDF.js and Tesseract.js for OCR support.
