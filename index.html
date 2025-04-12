@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java to TXT Converter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Java to TXT Converter</h1>
+        <div class="converter-box">
+            <div class="command-line">
+                <div class="prompt">$</div>
+                <div class="command-input" contenteditable="true"></div>
+            </div>
+            <div class="input-section">
+                <h2>Upload Java Files</h2>
+                <div class="file-upload">
+                    <input type="file" id="fileInput" multiple accept=".java" class="hidden">
+                    <button id="uploadBtn">Choose Files</button>
+                    <span id="fileCount">No files selected</span>
+                </div>
+                <div id="fileList" class="file-list"></div>
+            </div>
+            <div class="button-section">
+                <button id="convertBtn">Convert All</button>
+                <button id="clearBtn">Clear All</button>
+            </div>
+            <div class="output-section">
+                <h2>Conversion Log</h2>
+                <div id="conversionLog" class="log-output"></div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html> 
